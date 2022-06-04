@@ -71,6 +71,7 @@ signals:
     void pressedCoords(QString coords);
     void editingStage();
     void viewingStage();
+    void noIgnitionPoint();
 
 private: //RENDERING
     double windDirection = 270, windSpeed = 0;

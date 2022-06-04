@@ -34,6 +34,8 @@ MainWindow::MainWindow(QWidget *parent, UserImage* w)
 
     connect(brushColor, &QButtonGroup::idClicked, view, &UserImage::setBrushColor);
 
+    connect(view, &UserImage::noIgnitionPoint, this, [this](){QMessageBox::information(this, tr("BeLighter"), tr("Please select an ignition point first"));});
+
     connect(view, &UserImage::editingStage, this, [this](){ // editing limits moving through timeline
         ui->timeSlider->setMaximum(0);
         ui->dial->setEnabled(true);
@@ -61,12 +63,6 @@ void MainWindow::outputStatusBar(QString text)
 
 void MainWindow::on_PlayPayse_clicked()
 {
-    if(!view->source)
-    {
-        QMessageBox::information(this, tr("BeLighter"), tr("Please select an ignition point first"));
-        return;
-    }
-
     if(notRenderedError())
         return;
 
@@ -100,12 +96,12 @@ bool MainWindow::notRenderedError()
 {
     if(!view->isRenderComplete())
     {
-        bool No = QMessageBox::warning(this, tr("BeLighter"),
+        int Yes = QMessageBox::warning(this, tr("BeLighter"),
                                        tr("The scenario wasn't rendered yet.\n"
                                           "Do you want to do it now?"),
                                        QMessageBox::Yes,
                                        QMessageBox::No);
-        if(!No)
+        if(Yes == QMessageBox::Yes)
             view->renderScenario();
 
         return true;

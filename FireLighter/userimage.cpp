@@ -1,5 +1,6 @@
 #include "userimage.h"
 #include "iostream"
+#include <iomanip>
 #include <chrono>
 enum WindDirection
 {
@@ -164,14 +165,14 @@ bool UserImage::eventFilter(QObject *obj, QEvent *event)
         break;
     case QEvent::MouseButtonPress:
     {
-        if(renderComplete) //RETURN LATER FOR BETER UX
+        if(renderComplete)
         {
-            bool No = QMessageBox::warning(this, tr("BzzLighter"),
+            int Yes = QMessageBox::warning(this, tr("BzzLighter"),
                                            tr("The scenario is already rendered.\n"
                                               "Do you want to return to editing the landscape?"),
                                            QMessageBox::Yes,
                                            QMessageBox::No);
-            if(!No)
+            if(Yes == QMessageBox::Yes)
             {
                 renderComplete = false;
                 cells[0][source->first][source->second].isBurning = false;
@@ -228,7 +229,7 @@ void UserImage::renderScenario()
 {
     if(!source)
     {
-        QMessageBox::information(this, tr("BeLighter"), tr("Please select an ignition point first"));
+        emit noIgnitionPoint();
         return;
     }
 
@@ -238,6 +239,8 @@ void UserImage::renderScenario()
 
     for(currentFrame = 0; currentFrame < 99; ++currentFrame)//time loop
     {
+        std::cout << time(NULL) << std::endl;
+
         double windInfluences[8]; //calculate the wind influence coefficient first
         for(uchar i =0; i < 8; ++i)
         {
@@ -284,8 +287,6 @@ void UserImage::renderScenario()
             }
         }
 
-
-//        burning = newBurn;
         noiseWind();
     }
 
@@ -302,13 +303,16 @@ std::map<std::pair<uchar, uchar>, uchar> UserImage::igniteNeighbours(const uchar
     std::map<std::pair<uchar, uchar>, uchar> ignited;
 
     std::random_device rd;
-    std::mt19937 gen(rd() + time(NULL) + row + col); //adding time seed to get different results
+    std::mt19937 gen(rd() + time(NULL) * row + col + currentFrame); //adding differernt seed changes to ger different results
 
     std::uniform_real_distribution<> probability(0, 1);
 
     double pComp, pReal;
     double nominalSpreadProbability;
     uchar nominalSpreadVelocity;
+
+    //std::cout << std::fixed;
+    //std::cout << std::setprecision(2);
 
 //East:
     ++wind;
@@ -322,6 +326,8 @@ std::map<std::pair<uchar, uchar>, uchar> UserImage::igniteNeighbours(const uchar
     nominalSpreadVelocity = Cell::nominalSpreadV[cells[0][row][col + 1].type];
 
     pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
+
+    //std::cout << "E: " << pComp ; // << " Wind: " << *wind;
 
     if(pComp < pReal)//ignition
         ignited[{row, col + 1}] = 1 + static_cast<uchar>(distances[row][col + 1] /
@@ -342,6 +348,8 @@ NorthEast:
 
     pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
 
+    //std::cout << " NE: " << pComp ; // << " Wind: " << *wind;
+
     if(pComp < pReal)//ignition
         ignited[{row - 1, col + 1}] = 1 + static_cast<uchar>(distances[row - 1][col + 1] /
                 ( (nominalSpreadVelocity * pow(M_E, 0.1783 * windSpeed)) * (pow(M_E, -0.014 * 0.1)) )); // Moisture for now will be 0.1
@@ -357,7 +365,9 @@ North:
         nominalSpreadVelocity = Cell::nominalSpreadV[cells[0][row - 1][col].type];
 
         pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
-        std::cout << "Nort: " << pReal << " Wind: " << *wind << std::endl;
+
+        //std::cout << " N: " << pComp ; // << " Wind: " << *wind;
+
         if(pComp < pReal)//ignition
             ignited[{row - 1, col}] = 1 + static_cast<uchar>(distances[row - 1][col] /
                     ( (nominalSpreadVelocity * pow(M_E, 0.1783 * windSpeed)) * (pow(M_E, -0.014 * 0.1)) )); // Moisture for now will be 0.1
@@ -374,6 +384,8 @@ NorthWest:
     nominalSpreadVelocity = Cell::nominalSpreadV[cells[0][row - 1][col - 1].type];
 
     pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
+
+    //std::cout << " !!!NW: " << pComp ; // << " Wind: " << *wind;
 
     if(pComp < pReal)//ignition
         ignited[{row - 1, col - 1}] = 1 + static_cast<uchar>(distances[row - 1][col - 1] /
@@ -392,6 +404,9 @@ West:
 
     pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
 
+    //std::cout << " W: " << pComp ; // << " Wind: " << *wind;
+
+
     if(pComp < pReal)//ignition
         ignited[{row, col - 1}] = 1 + static_cast<uchar>(distances[row][col - 1] /
                 ( (nominalSpreadVelocity * pow(M_E, 0.1783 * windSpeed)) * (pow(M_E, -0.014 * 0.1)) )); // Moisture for now will be 0.1
@@ -408,6 +423,8 @@ SouthWest:
     nominalSpreadVelocity = Cell::nominalSpreadV[cells[0][row + 1][col - 1].type];
 
     pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
+
+    //std::cout << " SW: " << pComp ; // << " Wind: " << *wind;
 
     if(pComp < pReal)//ignition
         ignited[{row + 1, col - 1}] = 1 + static_cast<uchar>(distances[row + 1][col - 1] /
@@ -427,6 +444,8 @@ South:
 
     pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
 
+    //std::cout << " S: " << pComp ; // << " Wind: " << *wind;
+
     if(pComp < pReal)//ignition
         ignited[{row + 1, col}] = 1 + static_cast<uchar>(distances[row + 1][col] /
                 ( (nominalSpreadVelocity * pow(M_E, 0.1783 * windSpeed)) * (pow(M_E, -0.014 * 0.1)) )); // Moisture for now will be 0.1
@@ -444,11 +463,14 @@ SouthEast:
 
     pReal = (1 - pow( 1 - nominalSpreadProbability, *wind)) * 1.1;
 
+    //std::cout << " !!!SE: " << pComp; // << " Wind: " << *wind;
+
     if(pComp < pReal)//ignitionn
         ignited[{row + 1, col + 1}] = 1 + static_cast<uchar>(distances[row + 1][col + 1] /
                 ( (nominalSpreadVelocity * pow(M_E, 0.1783 * windSpeed)) * (pow(M_E, -0.014 * 0.1)) )); // Moisture for now will be 0.1
 
 Completed:
+    //std::cout << std::endl;
     return ignited;
 }
 
@@ -483,7 +505,7 @@ double UserImage::windInfluence(uchar dir) // we make a similar function of wind
 {
     if (windSpeed == 0)
         return 1;
-    double add = 1 - windSpeed / 100;
+    double add = windSpeed / 100;
     double divAdd = 1 + func(1 - windSpeed / 100);
     return add + 4 / (0.5 * abs(dir * 45 - windDirection) + divAdd);
 }
